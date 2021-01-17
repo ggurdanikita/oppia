@@ -26,7 +26,7 @@ import os
 from constants import constants
 
 # NEED_SET
-SENDER_EMAIL = "ggurdanikita@gmail.com"
+SENDER_EMAIL = "admin@example.com"
 PLATFORM_URL = "http://localhost:8181"
 
 
