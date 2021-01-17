@@ -33,9 +33,11 @@ from core.domain import takeout_service
 from core.domain import user_services
 from core.domain import wipeout_service
 from core.platform import models
+from core.platform.email.mailgun_email_services import send_email_to_recipients
 import feconf
 import python_utils
 import utils
+import uuid
 
 current_user_services = models.Registry.import_current_user_services()
 
@@ -180,6 +182,8 @@ class PreferencesHandler(base.BaseHandler):
                     % feconf.MAX_BIO_LENGTH_IN_CHARS)
             else:
                 user_services.update_user_bio(self.user_id, data)
+        elif update_type == 'password':
+            user_services.set_user_info(user_id=self.user_id, password=python_utils.hash_password(data))
         elif update_type == 'subject_interests':
             user_services.update_subject_interests(self.user_id, data)
         elif update_type == 'preferred_language_codes':
@@ -275,6 +279,7 @@ class SignupHandler(base.BaseHandler):
     def get(self):
         """Handles GET requests."""
         user_settings = user_services.get_user_settings(self.user_id)
+
         self.render_json({
             'can_send_emails': feconf.CAN_SEND_EMAILS,
             'has_agreed_to_latest_terms': bool(
@@ -312,7 +317,21 @@ class SignupHandler(base.BaseHandler):
 
         if not user_services.get_username(self.user_id):
             try:
-                user_services.set_username(self.user_id, username)
+                user_services.set_user_info(user_id=self.user_id,
+                                            new_username=username,
+                                            role=self.payload.get('role'),
+                                            password=python_utils.hash_password(self.payload.get('password')))
+
+                user_settings = user_services.get_user_settings(self.user_id)
+                token = uuid.uuid4().hex
+                user_services.set_user_token(user_id=user_settings.user_id, token=token)
+                link = feconf.PLATFORM_URL + "/email_confirm?token=" + token
+
+                send_email_to_recipients(sender_email=feconf.SENDER_EMAIL,
+                                         recipient_emails=[user_settings.email],
+                                         subject="Registration confirmation",
+                                         plaintext_body=link,
+                                         html_body=link)
             except utils.ValidationError as e:
                 raise self.InvalidInputException(e)
 
@@ -453,6 +472,7 @@ class UserInfoHandler(base.BaseHandler):
         """Handles GET requests."""
         # The following headers are added to prevent caching of this response.
         self.response.cache_control.no_store = True
+
         if self.username:
             user_actions = user_services.UserActionsInfo(self.user_id).actions
             user_settings = user_services.get_user_settings(
@@ -500,3 +520,97 @@ class UrlHandler(base.BaseHandler):
                 raise self.InvalidInputException(
                     'Incomplete or empty GET parameters passed'
                 )
+
+
+class PasswordRecoveryTokenHandler(base.BaseHandler):
+
+    @acl_decorators.open_access
+    def post(self):
+        """Handles POST PasswordRecoveryTokenHandler requests."""
+
+        email = self.payload.get('email')
+        user_settings = user_services.get_user_settings_from_email(email)
+
+        if not user_settings:
+            return self.render_json({})
+
+        token = uuid.uuid4().hex
+        user_services.set_user_token(user_id=user_settings.user_id, token=token)
+
+        link = feconf.PLATFORM_URL + "/password_recovery?token=" + token
+        send_email_to_recipients(sender_email=feconf.SENDER_EMAIL,
+                                 recipient_emails=[user_settings.email],
+                                 subject="Password recovery",
+                                 plaintext_body=link,
+                                 html_body=link)
+        self.render_json({})
+
+
+class PasswordRecoveryHandler(base.BaseHandler):
+
+    @acl_decorators.open_access
+    def post(self, token):
+        """Handles POST PasswordRecoveryHandler requests."""
+
+        # token = self.payload.get('token')
+        password = python_utils.hash_password(self.payload.get('password'))
+
+        if not token:
+            raise Exception('Invalid token')
+
+        user_settings = user_services.get_user_settings_from_token(token)
+
+        if not user_settings:
+            raise Exception('Invalid token')
+
+        user_services.set_user_info(user_id=user_settings.user_id, password=password)
+        user_services.remove_user_token(user_id=user_settings.user_id)
+        self.render_json({})
+
+
+class EmailConfirmTokenHandler(base.BaseHandler):
+
+    @acl_decorators.open_access
+    def post(self):
+        """Handles POST EmailConfirmTokenHandler requests."""
+
+        email = self.payload.get('email')
+        user_settings = user_services.get_user_settings_from_email(email)
+
+        if not user_settings:
+            return self.render_json({})
+
+        if user_settings.email_confirmed:
+            raise Exception('Email aready confirmed')
+
+        token = uuid.uuid4().hex
+        user_services.set_user_token(user_id=user_settings.user_id, token=token)
+
+        link = feconf.PLATFORM_URL + "/email_confirm?token=" + token
+        send_email_to_recipients(sender_email=feconf.SENDER_EMAIL,
+                                 recipient_emails=[user_settings.email],
+                                 subject="Registration confirmation",
+                                 plaintext_body=link,
+                                 html_body=link)
+        self.render_json({})
+
+
+class EmailConfirmHandler(base.BaseHandler):
+
+    @acl_decorators.open_access
+    def post(self, token):
+        """Handles POST EmailConfirmHandler requests."""
+
+        # token = self.payload.get('token')
+
+        if not token:
+            raise Exception('Invalid token')
+
+        user_settings = user_services.get_user_settings_from_token(token)
+
+        if not user_settings:
+            raise Exception('Invalid token')
+
+        user_services.user_email_confirm(user_id=user_settings.user_id)
+        user_services.remove_user_token(user_id=user_settings.user_id)
+        self.render_json({})

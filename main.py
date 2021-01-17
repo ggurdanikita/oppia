@@ -62,6 +62,7 @@ from core.controllers import topic_viewer
 from core.controllers import topics_and_skills_dashboard
 from core.controllers import voice_artist
 from core.domain import user_services
+from core.platform.email.mailgun_email_services import send_email_to_recipients
 from core.platform import models
 import feconf
 
@@ -70,6 +71,8 @@ from mapreduce import parameters as mapreduce_parameters
 import webapp2
 from webapp2_extras import routes
 
+import python_utils
+import requests
 
 current_user_services = models.Registry.import_current_user_services()
 transaction_services = models.Registry.import_transaction_services()
@@ -94,6 +97,68 @@ class WarmupPage(base.BaseHandler):
     def get(self):
         """Handles GET warmup requests."""
         pass
+
+
+class CustomAuthHandler(base.BaseHandler):
+
+    @acl_decorators.open_access
+    def post(self):
+        """Handles POST CustomAuthHandler requests."""
+
+        email = self.payload.get('email')
+        password = self.payload.get('password')
+        user_settings = user_services.get_user_settings_from_email(email)
+
+        if not user_settings or not python_utils.verify_password(user_settings.password, password):
+            logging.error('Invalid credentials')
+            raise Exception('Invalid credentials')
+
+        path_params = ""
+        for item in self.request.GET.items():
+            if path_params:
+                path_params += "&"
+            path_params += item[0] + "=" + item[1]
+        url = "http://localhost:8181/_ah/login?" + path_params
+
+        response = requests.get(url, allow_redirects=True)
+
+        for name, value in response.headers.items():
+            self.response.headers[python_utils.convert_to_bytes(name)] = python_utils.convert_to_bytes(value)
+        self.response.headers[python_utils.convert_to_bytes('set-cookie')] = \
+            python_utils.convert_to_bytes(response.history[0].headers['set-cookie'])
+
+        self.render_json({})
+
+
+class AhLoginProxyHandler(base.BaseHandler):
+    """Handles old login requests.
+    Prohibits authorization by email only(without password) via '/_ah/login' handler.
+    """
+
+    @acl_decorators.open_access
+    def get(self):
+        """Handles GET '/_ah/login' proxy requests."""
+
+        for item in self.request.GET.items():
+            if item[0] == 'action' and item[1] == 'Login':
+                raise Exception('Auth method not supported')
+
+        path_params = ""
+        for item in self.request.GET.items():
+            if path_params:
+                path_params += "&"
+            path_params += item[0] + "=" + item[1]
+
+        url = "http://localhost:8181/_ah/login?" + path_params
+        headers = {key: value for key, value in self.request.headers.items()}
+
+        response = requests.get(url, allow_redirects=True, headers=headers)
+        if response.status_code == 200:
+            for key, value in response.headers.items():
+                self.response.headers[python_utils.convert_to_bytes(key)] = python_utils.convert_to_bytes(value)
+            self.render_json({})
+        else:
+            raise Exception(response.text)
 
 
 class HomePageRedirectPage(base.BaseHandler):
@@ -200,6 +265,12 @@ mapreduce_parameters.config.BASE_PATH = '/mapreduce/worker'
 
 # Register the URLs with the classes responsible for handling them.
 URLS = MAPREDUCE_HANDLERS + [
+    get_redirect_route(r'/custom_auth', CustomAuthHandler),
+    get_redirect_route(r'/_ah/login_proxy', AhLoginProxyHandler),
+    get_redirect_route(r'/password_recovery_token', profile.PasswordRecoveryTokenHandler),
+    get_redirect_route(r'/email_confirm_token', profile.EmailConfirmTokenHandler),
+    get_redirect_route(r'/token/<token>/password_recovery', profile.PasswordRecoveryHandler),
+    get_redirect_route(r'/token/<token>/email_confirm', profile.EmailConfirmHandler),
     get_redirect_route(r'/_ah/warmup', WarmupPage),
     get_redirect_route(r'/', HomePageRedirectPage),
     get_redirect_route(r'/splash', SplashRedirectPage),

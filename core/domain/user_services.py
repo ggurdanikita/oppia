@@ -100,7 +100,7 @@ class UserSettings(python_utils.OBJECT):
             user_bio='', subject_interests=None, first_contribution_msec=None,
             preferred_language_codes=None, preferred_site_language_code=None,
             preferred_audio_language_code=None, pin=None, display_alias=None,
-            deleted=False):
+            deleted=False, password=None, token=None, email_confirmed=None):
         """Constructs a UserSettings domain object.
 
         Args:
@@ -150,6 +150,9 @@ class UserSettings(python_utils.OBJECT):
         self.email = email
         self.role = role
         self.username = username
+        self.password = password
+        self.token = token
+        self.email_confirmed = email_confirmed
         self.last_agreed_to_terms = last_agreed_to_terms
         self.last_started_state_editor_tutorial = (
             last_started_state_editor_tutorial)
@@ -303,6 +306,9 @@ class UserSettings(python_utils.OBJECT):
             'email': self.email,
             'role': self.role,
             'username': self.username,
+            'password': self.password,
+            'token': self.token,
+            'email_confirmed': self.email_confirmed,
             'normalized_username': self.normalized_username,
             'last_agreed_to_terms': self.last_agreed_to_terms,
             'last_started_state_editor_tutorial': (
@@ -581,6 +587,38 @@ def get_user_settings_from_username(username):
     else:
         return get_user_settings(user_model.id)
 
+
+def get_user_settings_from_email(email):
+    """Gets the user settings for a given email.
+
+    Args:
+        email: str. Identifiable email to display in the UI.
+
+    Returns:
+        UserSettingsModel or None. The UserSettingsModel instance corresponding
+        to the given email, or None if no such model was found.
+    """
+    user_model = user_models.UserSettingsModel.get_by_email(email)
+    if user_model is None:
+        return None
+    else:
+        return get_user_settings(user_model.id)
+
+def get_user_settings_from_token(token):
+    """Gets the user settings for a given token.
+
+    Args:
+        token: str. Identifiable token to display in the UI.
+
+    Returns:
+        UserSettingsModel or None. The UserSettingsModel instance corresponding
+        to the given token, or None if no such model was found.
+    """
+    user_model = user_models.UserSettingsModel.get_by_token(token)
+    if user_model is None:
+        return None
+    else:
+        return get_user_settings(user_model.id)
 
 def get_users_settings(user_ids, strict=False):
     """Gets domain objects representing the settings for the given user_ids.
@@ -1010,6 +1048,9 @@ def _get_user_settings_from_model(user_settings_model):
         email=user_settings_model.email,
         role=user_settings_model.role,
         username=user_settings_model.username,
+        password=user_settings_model.password,
+        token=user_settings_model.token,
+        email_confirmed=user_settings_model.email_confirmed,
         last_agreed_to_terms=user_settings_model.last_agreed_to_terms,
         last_started_state_editor_tutorial=(
             user_settings_model.last_started_state_editor_tutorial),
@@ -1472,6 +1513,43 @@ def set_username(user_id, new_username):
             'Sorry, the username \"%s\" is already taken! Please pick '
             'a different one.' % new_username)
     user_settings.username = new_username
+    _save_user_settings(user_settings)
+
+
+def set_user_info(user_id, new_username=None, role=None, password=None):
+    user_settings = get_user_settings(user_id, strict=True)
+
+    if new_username is not None:
+        UserSettings.require_valid_username(new_username)
+        if is_username_taken(new_username):
+            raise utils.ValidationError(
+                'Sorry, the username \"%s\" is already taken! Please pick '
+                'a different one.' % new_username)
+
+    if role is not None and role not in [feconf.ROLE_ID_EXPLORATION_EDITOR, feconf.ROLE_ID_LEARNER]:
+        raise utils.ValidationError('Unsupported user role: \"%s\"' % role)
+
+    user_settings.username = new_username if new_username is not None else user_settings.username
+    user_settings.role = role if role is not None else user_settings.role
+    user_settings.password = password if password is not None else user_settings.password
+    _save_user_settings(user_settings)
+
+
+def remove_user_token(user_id):
+    user_settings = get_user_settings(user_id, strict=True)
+    user_settings.token = None
+    _save_user_settings(user_settings)
+
+
+def set_user_token(user_id, token):
+    user_settings = get_user_settings(user_id, strict=True)
+    user_settings.token = token
+    _save_user_settings(user_settings)
+
+
+def user_email_confirm(user_id):
+    user_settings = get_user_settings(user_id, strict=True)
+    user_settings.email_confirmed = "True"
     _save_user_settings(user_settings)
 
 

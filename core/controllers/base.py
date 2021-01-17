@@ -260,22 +260,34 @@ class BaseHandler(webapp2.RequestHandler):
                 # page and the user_id is None, if that is the case an exception
                 # is raised which is handled by the frontend by showing a
                 # continue to registration modal.
-                if 'signup' in self.request.uri and not self.user_id:
-                    raise self.UnauthorizedUserException(
-                        'Registration session expired.')
-                csrf_token = self.request.get('csrf_token')
-                if not csrf_token:
-                    raise self.UnauthorizedUserException(
-                        'Missing CSRF token. Changes were not saved. '
-                        'Please report this bug.')
+                if (
+                    "custom_auth" not in self.request.uri
+                    and "password_recovery" not in self.request.uri
+                    and "email_confirm" not in self.request.uri
+                ):
+                    if 'signup' in self.request.uri and not self.user_id:
+                        raise self.UnauthorizedUserException(
+                            'Registration session expired.')
+                    csrf_token = self.request.get('csrf_token')
+                    if not csrf_token:
+                        raise self.UnauthorizedUserException(
+                            'Missing CSRF token. Changes were not saved. '
+                            'Please report this bug.')
 
-                is_csrf_token_valid = CsrfTokenManager.is_csrf_token_valid(
-                    self.user_id, csrf_token)
+                    is_csrf_token_valid = CsrfTokenManager.is_csrf_token_valid(
+                        self.user_id, csrf_token)
 
-                if not is_csrf_token_valid:
-                    raise self.UnauthorizedUserException(
-                        'Your session has expired, and unfortunately your '
-                        'changes cannot be saved. Please refresh the page.')
+                    if not is_csrf_token_valid:
+                        raise self.UnauthorizedUserException(
+                            'Your session has expired, and unfortunately your '
+                            'changes cannot be saved. Please refresh the page.')
+
+                if 'custom_auth' in self.request.uri:
+                    email = self.payload.get('email')
+                    user_settings = user_services.get_user_settings_from_email(email)
+                    if not user_settings or user_settings.email_confirmed != "True":
+                        raise Exception('Email not confirmed')
+
             except Exception as e:
                 logging.error('%s: payload %s', e, self.payload)
 

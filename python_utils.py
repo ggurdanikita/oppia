@@ -19,6 +19,9 @@
 from __future__ import absolute_import  # pylint: disable=import-only-modules
 from __future__ import print_function  # pylint: disable=import-only-modules
 from __future__ import unicode_literals  # pylint: disable=import-only-modules
+from binascii import hexlify
+from os import urandom
+import hashlib
 
 import io
 import os
@@ -436,3 +439,42 @@ def yaml_from_dict(dictionary, width=80):
     """
     dictionary = _recursively_convert_to_str(dictionary)
     return yaml.safe_dump(dictionary, default_flow_style=False, width=width)
+
+
+def hash_password(password):
+    """Hash password via sha512.
+
+    Args:
+        password (str): Password string
+
+    Returns:
+        str: Encrypted password
+    """
+    password = password if password else ""
+    salt = hashlib.sha256(urandom(60)).hexdigest().encode("ascii")
+    hashed = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt, 100000)
+    hashed = hexlify(hashed)
+
+    return (salt + hashed).decode("ascii")
+
+
+def verify_password(stored_password, provided_password):
+    """Verify provided password.
+
+    Hash provided password and compare it with stored
+    Args:
+        stored_password (str): Stored user password
+        provided_password (str): Provided password
+
+    Returns:
+        bool: True, if paswords match, else false
+    """
+    salt = stored_password[:64]
+    stored_password = stored_password[64:]
+    hashed = hashlib.pbkdf2_hmac(
+        "sha512", provided_password.encode("utf-8"), salt.encode("ascii"), 100000
+    )
+
+    hashed = hexlify(hashed).decode("ascii")
+
+    return hashed == stored_password

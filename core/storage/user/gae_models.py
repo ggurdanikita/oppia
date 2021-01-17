@@ -95,6 +95,14 @@ class UserSettingsModel(base_models.BaseModel):
 
     # Identifiable username to display in the UI. May be None.
     username = datastore_services.StringProperty(indexed=True)
+
+    # User password
+    password = datastore_services.StringProperty(default=None)
+    # Token for email confirmation and password recovery
+    token = datastore_services.StringProperty(default=None)
+    # Email confirmation status
+    email_confirmed = datastore_services.StringProperty(default=None)
+
     # Normalized username to use for duplicate-username queries. May be None.
     normalized_username = datastore_services.StringProperty(indexed=True)
     # When the user last started the state editor tutorial. May be None.
@@ -158,6 +166,9 @@ class UserSettingsModel(base_models.BaseModel):
             'preferred_audio_language_code':
                 base_models.EXPORT_POLICY.EXPORTED,
             'username': base_models.EXPORT_POLICY.EXPORTED,
+            'password': base_models.EXPORT_POLICY.EXPORTED,
+            'token': base_models.EXPORT_POLICY.EXPORTED,
+            'email_confirmed': base_models.EXPORT_POLICY.EXPORTED,
             'normalized_username': base_models.EXPORT_POLICY.EXPORTED,
             'last_started_state_editor_tutorial':
                 base_models.EXPORT_POLICY.EXPORTED,
@@ -308,6 +319,32 @@ class UserSettingsModel(base_models.BaseModel):
         """
         return cls.get_all().filter(
             cls.normalized_username == normalized_username).get()
+
+    @classmethod
+    def get_by_email(cls, email):
+        """Returns a user model given an email.
+
+        Args:
+            email: str. The user's email.
+
+        Returns:
+            UserSettingsModel. The UserSettingsModel instance which contains
+            the same email.
+        """
+        return cls.get_all().filter(cls.email == email).get()
+
+    @classmethod
+    def get_by_token(cls, token):
+        """Returns a user model given an token.
+
+        Args:
+            token: str. The user's token.
+
+        Returns:
+            UserSettingsModel. The UserSettingsModel instance which contains
+            the same token.
+        """
+        return cls.get_all().filter(cls.token == token).get()
 
     @classmethod
     def get_by_role(cls, role):
