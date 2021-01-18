@@ -103,6 +103,9 @@ class UserSettingsModel(base_models.BaseModel):
     # Email confirmation status
     email_confirmed = datastore_services.StringProperty(default=None)
 
+    name = datastore_services.StringProperty(default=None)
+    surname = datastore_services.StringProperty(default=None)
+
     # Normalized username to use for duplicate-username queries. May be None.
     normalized_username = datastore_services.StringProperty(indexed=True)
     # When the user last started the state editor tutorial. May be None.
@@ -169,6 +172,8 @@ class UserSettingsModel(base_models.BaseModel):
             'password': base_models.EXPORT_POLICY.EXPORTED,
             'token': base_models.EXPORT_POLICY.EXPORTED,
             'email_confirmed': base_models.EXPORT_POLICY.EXPORTED,
+            'name': base_models.EXPORT_POLICY.EXPORTED,
+            'surname': base_models.EXPORT_POLICY.EXPORTED,
             'normalized_username': base_models.EXPORT_POLICY.EXPORTED,
             'last_started_state_editor_tutorial':
                 base_models.EXPORT_POLICY.EXPORTED,

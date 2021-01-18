@@ -165,7 +165,9 @@ class PreferencesHandler(base.BaseHandler):
                 user_email_preferences.can_receive_feedback_message_email),
             'can_receive_subscription_email': (
                 user_email_preferences.can_receive_subscription_email),
-            'subscription_list': subscription_list
+            'subscription_list': subscription_list,
+            'name': user_settings.name,
+            'surname': user_settings.surname
         })
         self.render_json(self.values)
 
@@ -184,6 +186,10 @@ class PreferencesHandler(base.BaseHandler):
                 user_services.update_user_bio(self.user_id, data)
         elif update_type == 'password':
             user_services.set_user_info(user_id=self.user_id, password=python_utils.hash_password(data))
+        elif update_type == 'name':
+            user_services.set_user_info(user_id=self.user_id, name=data)
+        elif update_type == 'surname':
+            user_services.set_user_info(user_id=self.user_id, surname=data)
         elif update_type == 'subject_interests':
             user_services.update_subject_interests(self.user_id, data)
         elif update_type == 'preferred_language_codes':
@@ -325,7 +331,7 @@ class SignupHandler(base.BaseHandler):
                 user_settings = user_services.get_user_settings(self.user_id)
                 token = uuid.uuid4().hex
                 user_services.set_user_token(user_id=user_settings.user_id, token=token)
-                link = feconf.PLATFORM_URL + "/email_confirm?token=" + token
+                link = feconf.OPPIA_SITE_URL + "/email_confirm?token=" + token
 
                 send_email_to_recipients(sender_email=feconf.SENDER_EMAIL,
                                          recipient_emails=[user_settings.email],
@@ -537,7 +543,7 @@ class PasswordRecoveryTokenHandler(base.BaseHandler):
         token = uuid.uuid4().hex
         user_services.set_user_token(user_id=user_settings.user_id, token=token)
 
-        link = feconf.PLATFORM_URL + "/password_recovery?token=" + token
+        link = feconf.OPPIA_SITE_URL + "/password_recovery?token=" + token
         send_email_to_recipients(sender_email=feconf.SENDER_EMAIL,
                                  recipient_emails=[user_settings.email],
                                  subject="Password recovery",
@@ -586,7 +592,7 @@ class EmailConfirmTokenHandler(base.BaseHandler):
         token = uuid.uuid4().hex
         user_services.set_user_token(user_id=user_settings.user_id, token=token)
 
-        link = feconf.PLATFORM_URL + "/email_confirm?token=" + token
+        link = feconf.OPPIA_SITE_URL + "/email_confirm?token=" + token
         send_email_to_recipients(sender_email=feconf.SENDER_EMAIL,
                                  recipient_emails=[user_settings.email],
                                  subject="Registration confirmation",

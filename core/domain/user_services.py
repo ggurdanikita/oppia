@@ -100,7 +100,8 @@ class UserSettings(python_utils.OBJECT):
             user_bio='', subject_interests=None, first_contribution_msec=None,
             preferred_language_codes=None, preferred_site_language_code=None,
             preferred_audio_language_code=None, pin=None, display_alias=None,
-            deleted=False, password=None, token=None, email_confirmed=None):
+            deleted=False, password=None, token=None, email_confirmed=None,
+            name=None, surname=None):
         """Constructs a UserSettings domain object.
 
         Args:
@@ -152,6 +153,8 @@ class UserSettings(python_utils.OBJECT):
         self.username = username
         self.password = password
         self.token = token
+        self.name = name
+        self.surname = surname
         self.email_confirmed = email_confirmed
         self.last_agreed_to_terms = last_agreed_to_terms
         self.last_started_state_editor_tutorial = (
@@ -309,6 +312,8 @@ class UserSettings(python_utils.OBJECT):
             'password': self.password,
             'token': self.token,
             'email_confirmed': self.email_confirmed,
+            'name': self.name,
+            'surname': self.surname,
             'normalized_username': self.normalized_username,
             'last_agreed_to_terms': self.last_agreed_to_terms,
             'last_started_state_editor_tutorial': (
@@ -1051,6 +1056,8 @@ def _get_user_settings_from_model(user_settings_model):
         password=user_settings_model.password,
         token=user_settings_model.token,
         email_confirmed=user_settings_model.email_confirmed,
+        name=user_settings_model.name,
+        surname=user_settings_model.surname,
         last_agreed_to_terms=user_settings_model.last_agreed_to_terms,
         last_started_state_editor_tutorial=(
             user_settings_model.last_started_state_editor_tutorial),
@@ -1516,7 +1523,8 @@ def set_username(user_id, new_username):
     _save_user_settings(user_settings)
 
 
-def set_user_info(user_id, new_username=None, role=None, password=None):
+def set_user_info(user_id, new_username=None, role=None, password=None,
+                  name=None, surname=None):
     user_settings = get_user_settings(user_id, strict=True)
 
     if new_username is not None:
@@ -1532,6 +1540,8 @@ def set_user_info(user_id, new_username=None, role=None, password=None):
     user_settings.username = new_username if new_username is not None else user_settings.username
     user_settings.role = role if role is not None else user_settings.role
     user_settings.password = password if password is not None else user_settings.password
+    user_settings.name = name if name is not None else user_settings.name
+    user_settings.surname = surname if surname is not None else user_settings.surname
     _save_user_settings(user_settings)
 
 

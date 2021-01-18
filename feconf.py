@@ -27,8 +27,6 @@ from constants import constants
 
 # NEED_SET
 SENDER_EMAIL = "admin@example.com"
-PLATFORM_URL = "http://localhost:8181"
-
 
 # The datastore model ID for the list of featured activity references. This
 # value should not be changed.
