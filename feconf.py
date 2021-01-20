@@ -27,6 +27,11 @@ from constants import constants
 
 # NEED_SET
 SENDER_EMAIL = "admin@example.com"
+SMTP_SERVER_LOGIN = "admin@example.com"
+
+SMTP_SERVER_HOST = "smtp.example.com"
+SMTP_SERVER_PORT = 465
+SMTP_SERVER_PASSWORD = "PASS_WORD"
 
 # The datastore model ID for the list of featured activity references. This
 # value should not be changed.

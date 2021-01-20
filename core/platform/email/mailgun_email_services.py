@@ -24,97 +24,42 @@ import base64
 import feconf
 import python_utils
 
+import smtplib
+import ssl
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 def send_email_to_recipients(
         sender_email, recipient_emails, subject,
         plaintext_body, html_body, bcc=None, reply_to=None,
         recipient_variables=None):
-    """Send POST HTTP request to mailgun api. This method is adopted from
-    the requests library's post method.
+    # try:
+    if not feconf.SMTP_SERVER_HOST:
+        raise Exception('SMTP server host is not available.')
 
-    Args:
-        sender_email: str. The email address of the sender. This should be in
-            the form 'SENDER_NAME <SENDER_EMAIL_ADDRESS>' or
-            'SENDER_EMAIL_ADDRESS'. Must be utf-8.
-        recipient_emails: list(str). The email addresses of the recipients.
-            Must be utf-8.
-        subject: str. The subject line of the email, Must be utf-8.
-        plaintext_body: str. The plaintext body of the email. Must be utf-8.
-        html_body: str. The HTML body of the email. Must fit in a datastore
-            entity. Must be utf-8.
-        bcc: list(str)|None. Optional argument. List of bcc emails.
-        reply_to: str|None. Optional argument. Reply address formatted like
-            “reply+<reply_id>@<incoming_email_domain_name>
-            reply_id is the unique id of the sender.
-        recipient_variables: dict|None. Optional argument. If batch sending
-            requires differentiating each email based on the recipient, we
-            assign a unique id to each recipient, including info relevant to
-            that recipient so that we can reference it when composing the
-            email like so:
-                recipient_variables =
-                    {"bob@example.com": {"first":"Bob", "id":1},
-                     "alice@example.com": {"first":"Alice", "id":2}}
-                subject = 'Hey, %recipient.first%’
-            More info about this format at:
-            https://documentation.mailgun.com/en/
-                latest/user_manual.html#batch-sending.
+    if not feconf.SMTP_SERVER_LOGIN:
+        raise Exception('SMTP server login is not available.')
 
-    Raises:
-        Exception. The mailgun api key is not stored in
-            feconf.MAILGUN_API_KEY.
-        Exception. The mailgun domain name is not stored in
-            feconf.MAILGUN_DOMAIN_NAME.
+    if not feconf.SMTP_SERVER_PASSWORD:
+        raise Exception('SMTP server password is not available.')
 
-    Returns:
-        bool. Whether the emails are sent successfully.
-    """
-    if not feconf.MAILGUN_API_KEY:
-        raise Exception('Mailgun API key is not available.')
+    for recipient_email in recipient_emails:
+        message = MIMEMultipart("alternative")
+        message["Subject"] = subject
+        message["From"] = sender_email
+        message["To"] = recipient_email
 
-    if not feconf.MAILGUN_DOMAIN_NAME:
-        raise Exception('Mailgun domain name is not set.')
+        part1 = MIMEText(plaintext_body, "plain")
+        part2 = MIMEText(html_body, "html")
 
-    # To send bulk emails we pass list of recipients in 'to' paarameter of
-    # post data. Maximum limit of recipients per request is 1000.
-    # For more detail check following link:
-    # https://documentation.mailgun.com/user_manual.html#batch-sending
-    recipient_email_lists = [
-        recipient_emails[i:i + 1000]
-        for i in python_utils.RANGE(0, len(recipient_emails), 1000)]
-    for email_list in recipient_email_lists:
-        data = {
-            'from': sender_email,
-            'subject': subject,
-            'text': plaintext_body,
-            'html': html_body
-        }
+        message.attach(part1)
+        message.attach(part2)
 
-        data['to'] = email_list[0] if len(email_list) == 1 else email_list
+        server = smtplib.SMTP_SSL(feconf.SMTP_SERVER_HOST, feconf.SMTP_SERVER_PORT)
+        server.login(feconf.SMTP_SERVER_LOGIN.encode('utf-8'), feconf.SMTP_SERVER_PASSWORD.encode('utf-8'))
+        server.sendmail(sender_email, recipient_email, message.as_string())
+# except Exception as e:
+    #     python_utils.PRINT("ERROR send_email_to_recipients: ", str(e))
+    #     return False
 
-        if bcc:
-            data['bcc'] = bcc[0] if len(bcc) == 1 else bcc
-
-        if reply_to:
-            data['h:Reply-To'] = reply_to
-
-        # 'recipient-variable' in post data forces mailgun to send individual
-        # email to each recipient (This is intended to be a workaround for
-        # sending individual emails).
-        data['recipient_variables'] = recipient_variables or {}
-
-        encoded = base64.b64encode(b'api:%s' % feconf.MAILGUN_API_KEY).strip()
-        auth_str = 'Basic %s' % encoded
-        header = {'Authorization': auth_str}
-        server = (
-            ('https://api.mailgun.net/v3/%s/messages')
-            % feconf.MAILGUN_DOMAIN_NAME)
-        encoded_url = python_utils.url_encode(data)
-        req = python_utils.url_request(server, encoded_url, header)
-        resp = python_utils.url_open(req)
-        # The function url_open returns a file_like object that can be queried
-        # for the status code of the url query. If it is not 200, the mail query
-        # failed so we return False (this function did not complete
-        # successfully).
-        if resp.getcode() != 200:
-            return False
     return True
