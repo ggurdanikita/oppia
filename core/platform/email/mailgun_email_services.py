@@ -33,33 +33,33 @@ def send_email_to_recipients(
         sender_email, recipient_emails, subject,
         plaintext_body, html_body, bcc=None, reply_to=None,
         recipient_variables=None):
-    # try:
-    if not feconf.SMTP_SERVER_HOST:
-        raise Exception('SMTP server host is not available.')
+    try:
+        if not feconf.SMTP_SERVER_HOST:
+            raise Exception('SMTP server host is not available.')
 
-    if not feconf.SMTP_SERVER_LOGIN:
-        raise Exception('SMTP server login is not available.')
+        if not feconf.SMTP_SERVER_LOGIN:
+            raise Exception('SMTP server login is not available.')
 
-    if not feconf.SMTP_SERVER_PASSWORD:
-        raise Exception('SMTP server password is not available.')
+        if not feconf.SMTP_SERVER_PASSWORD:
+            raise Exception('SMTP server password is not available.')
 
-    for recipient_email in recipient_emails:
-        message = MIMEMultipart("alternative")
-        message["Subject"] = subject
-        message["From"] = sender_email
-        message["To"] = recipient_email
+        for recipient_email in recipient_emails:
+            message = MIMEMultipart("alternative")
+            message["Subject"] = subject
+            message["From"] = sender_email
+            message["To"] = recipient_email
 
-        part1 = MIMEText(plaintext_body, "plain")
-        part2 = MIMEText(html_body, "html")
+            part1 = MIMEText(plaintext_body, "plain")
+            part2 = MIMEText(html_body, "html")
 
-        message.attach(part1)
-        message.attach(part2)
+            message.attach(part1)
+            message.attach(part2)
 
-        server = smtplib.SMTP_SSL(feconf.SMTP_SERVER_HOST, feconf.SMTP_SERVER_PORT)
-        server.login(feconf.SMTP_SERVER_LOGIN.encode('utf-8'), feconf.SMTP_SERVER_PASSWORD.encode('utf-8'))
-        server.sendmail(sender_email, recipient_email, message.as_string())
-# except Exception as e:
-    #     python_utils.PRINT("ERROR send_email_to_recipients: ", str(e))
-    #     return False
+            server = smtplib.SMTP_SSL(feconf.SMTP_SERVER_HOST, feconf.SMTP_SERVER_PORT)
+            server.login(feconf.SMTP_SERVER_LOGIN.encode('utf-8'), feconf.SMTP_SERVER_PASSWORD.encode('utf-8'))
+            server.sendmail(sender_email, recipient_email, message.as_string())
+    except Exception as e:
+            python_utils.PRINT("ERROR send_email_to_recipients: ", str(e))
+            return False
 
     return True
