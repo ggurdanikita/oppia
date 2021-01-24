@@ -326,7 +326,8 @@ class SignupHandler(base.BaseHandler):
                 user_services.set_user_info(user_id=self.user_id,
                                             new_username=username,
                                             role=self.payload.get('role'),
-                                            password=python_utils.hash_password(self.payload.get('password')))
+                                            password=python_utils.hash_password(self.payload.get('password')),
+                                            email=self.payload.get('email'))
 
                 user_settings = user_services.get_user_settings(self.user_id)
                 token = uuid.uuid4().hex

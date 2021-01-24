@@ -1524,7 +1524,7 @@ def set_username(user_id, new_username):
 
 
 def set_user_info(user_id, new_username=None, role=None, password=None,
-                  name=None, surname=None):
+                  name=None, surname=None, email=None):
     user_settings = get_user_settings(user_id, strict=True)
 
     if new_username is not None:
@@ -1542,6 +1542,7 @@ def set_user_info(user_id, new_username=None, role=None, password=None,
     user_settings.password = password if password is not None else user_settings.password
     user_settings.name = name if name is not None else user_settings.name
     user_settings.surname = surname if surname is not None else user_settings.surname
+    user_settings.email = email if email is not None else user_settings.email
     _save_user_settings(user_settings)
 
 

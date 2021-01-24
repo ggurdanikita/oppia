@@ -264,10 +264,8 @@ class BaseHandler(webapp2.RequestHandler):
                     "custom_auth" not in self.request.uri
                     and "password_recovery" not in self.request.uri
                     and "email_confirm" not in self.request.uri
+                    and "signup" not in self.request.uri
                 ):
-                    if 'signup' in self.request.uri and not self.user_id:
-                        raise self.UnauthorizedUserException(
-                            'Registration session expired.')
                     csrf_token = self.request.get('csrf_token')
                     if not csrf_token:
                         raise self.UnauthorizedUserException(
